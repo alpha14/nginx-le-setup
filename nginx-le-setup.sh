@@ -19,7 +19,8 @@ if [ -f ~/.nginx-le-setup ];then
     . ~/.nginx-le-setup
 fi
 
-domains=`find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_"`
+domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
+		 | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
 
 add_vhost()
 {
@@ -30,7 +31,7 @@ add_vhost()
 # render a template configuration file
 # expand variables + preserve formatting
 render_template() {
-    eval "echo \"$(cat $1)\""
+    eval "echo \"$(cat "$1")\""
 }
 
 usage ()
@@ -129,9 +130,11 @@ create ()
 	fi
     fi
 
-echo "Creating certificate...."
-# Creating cert (--staging --debug for testing)
-letsencrypt certonly --rsa-key-size 4096 --non-interactive --agree-tos --keep --text --email "${EMAIL}" -a webroot --webroot-path="${WEBROOT_PATH}" -d "${VNAME}"  || (echo "Error when creating cert, aborting..." && exit 4 )
+    echo "Creating certificate...."
+    # Creating cert (--staging --debug for testing)
+    letsencrypt certonly --rsa-key-size 4096 --non-interactive --agree-tos --keep \
+      --text --email "${EMAIL}" -a webroot --webroot-path="${WEBROOT_PATH}" \
+      -d "${VNAME}"  || (echo "Error when creating cert, aborting..." && exit 4 )
 
     # Adding virtual host
     if [ ! -z "${VPATH}" ]; then
@@ -162,10 +165,10 @@ case $key in
 	;;
     create|add)
 	shift
-	create $@
+	create "$@"
 	;;
     *)
 	# unknown option, redirect to "create" by default
-	create $@
+	create "$@"
 	;;
 esac
