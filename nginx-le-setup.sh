@@ -13,6 +13,7 @@ fi
 
 CONFIRM=0
 NGINX_DIR="/etc/nginx"
+HSTS=""
 
 #Check for a config file
 if [ -f ~/.nginx-le-setup ];then
