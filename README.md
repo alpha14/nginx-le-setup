@@ -22,3 +22,13 @@ Example of a default servername :
         root /path/to/webroot;  
      }  
 ```
+## Configuration file
+
+A config file can be placed in ~/.nginx-le-setup to avoid specifying some parameters
+```
+	EMAIL="me@example.com"  
+	WEBROOT_PATH="/data/letsencrypt"  
+	# Additional HSTS directive
+	HSTS="includeSubDomains; preload"  
+
+```
