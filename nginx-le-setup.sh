@@ -39,7 +39,7 @@ usage ()
 {
 echo "Usage: $0 <add|list> <params>"
 echo -e "\nCreate/Add arguments\n  -n, \t--name"
-echo -e "  -d, \t--directory"
+echo -e "  -d, \t--directory \t\tWebsite directory"
 echo -e "  -p, \t--port \t\tPort used for a dynamic website"
 echo -e "  -e, \t--email \tlets encrypt email"
 echo -e "  -wb, \t--webroot-path"
@@ -86,13 +86,13 @@ create ()
     if [[ -z "$VNAME" ]]; then
 	echo "--name required" && exit 1
     elif [[ -z "$VPATH" ]] && [[ -z "$VPORT" ]]; then
-	echo "directory or port is needed !" && exit 1
+	echo "Directory (-d) or port number (-p) is required" && exit 1
     elif [[ -z "$EMAIL" ]]; then
-	echo "email needed for lets encrypt is not set !" && usage && exit 1
+	echo "Lets encrypt email is required" && usage && exit 1
     elif [[ -z "${WEBROOT_PATH}" ]]; then
-	echo "web root path is not set !" && usage && exit 1
+	echo "Web root path is not set !" && usage && exit 1
     elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPORT" ]]; then
-	echo "--port and --directory are mutually exclusive"  && exit 1
+	echo "--port and --directory parameters are mutually exclusive"  && exit 1
     else
 	for domain in $domains; do
 	    if [[ "${domain}" == "${VNAME}" ]]; then
