@@ -6,14 +6,31 @@
 # is configured for lets encrypt
 #
 
+CONFIRM=0
+NGINX_DIR="/etc/nginx"
+HSTS=""
+
+config ()
+{
+    STATIC="root ${VPATH};
+        location / { try_files \$uri \$uri/ =404; }"
+    DYNAMIC="location / {
+        proxy_pass http://localhost:${VPORT}/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forward-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forward-Proto http;
+        proxy_set_header X-Nginx-Proxy true;
+        proxy_redirect off;
+    }"
+}
 if [ "$(id -u)" != "0" ]; then
     echo "This script requires root privileges."
     exit 1
 fi
-
-CONFIRM=0
-NGINX_DIR="/etc/nginx"
-HSTS=""
 
 #Check for a config file
 if [ -f ~/.nginx-le-setup ];then
@@ -23,12 +40,6 @@ fi
 domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
 		 | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
 
-add_vhost()
-{
-    render_template static.template > "${NGINX_DIR}/sites-available/${VNAME}"
-    ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
-}
-
 # render a template configuration file
 # expand variables + preserve formatting
 render_template() {
@@ -37,18 +48,17 @@ render_template() {
 
 usage ()
 {
-echo "Usage: $0 <add|list> <params>"
-echo -e "\nCreate/Add arguments\n  -n, \t--name"
-echo -e "  -d, \t--directory \t\tWebsite directory"
-echo -e "  -p, \t--port \t\tPort used for a dynamic website"
-echo -e "  -e, \t--email \tlets encrypt email"
-echo -e "  -wb, \t--webroot-path"
-echo -e "  -y\t\t\tAssume Yes to all queries and do not prompt"
+    echo "Usage: $0 <add|list> <params>"
+    echo -e "\nCreate/Add arguments\n  -n, \t--name"
+    echo -e "  -d, \t--directory \t\tWebsite directory"
+    echo -e "  -p, \t--port \t\tPort used for a dynamic website"
+    echo -e "  -e, \t--email \tlets encrypt email"
+    echo -e "  -wb, \t--webroot-path"
+    echo -e "  -y\t\t\tAssume Yes to all queries and do not prompt"
 }
 
 create ()
 {
-
     while [[ $# -gt 0 ]]
     do
 	key="$1"
@@ -137,14 +147,17 @@ create ()
       --text --email "${EMAIL}" -a webroot --webroot-path="${WEBROOT_PATH}" \
       -d "${VNAME}"  || (echo "Error when creating cert, aborting..." && exit 4 )
 
+    config
     # Adding virtual host
     if [ ! -z "${VPATH}" ]; then
 	echo "Adding vhost file (static)"
-	render_template static.template > "${NGINX_DIR}/sites-available/${VNAME}"
+	CONFIG=${STATIC}
     else
 	echo "Adding vhost file (dynamic)"
-	render_template dynamic.template > "${NGINX_DIR}/sites-available/${VNAME}"
+	CONFIG=${DYNAMIC}
     fi
+
+    render_template base.template > "${NGINX_DIR}/sites-available/${VNAME}"
     ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
     # Reload nginx

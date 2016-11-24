@@ -4,27 +4,23 @@ server {
     listen [::]:80;
     listen 443 ssl;
     server_name ${VNAME};
-    root ${VPATH};
+
+    ${CONFIG}
+
     location ~ /\.well-known/acme-challenge {
 	allow all;
 	default_type \"text/plain\";
 	root ${WEBROOT_PATH};
     }
-    
-    location ~ /\.git {
-      deny all;
-      }
 
-	location = /robots.txt  { access_log off; log_not_found off; }
-	location = /favicon.ico { access_log off; log_not_found off; }	
- 
-	# this prevents hidden files (beginning with a period) from being served
-	location ~ /\.          { access_log off; log_not_found off; deny all; }
-	
-	
-    location / {
-	try_files \$uri \$uri/ =404;
-    }
+    location ~ /\.git { deny all;}
+    location = /robots.txt  { access_log off; log_not_found off; }
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    # this prevents hidden files (beginning with a period) from being served
+    location ~ /\.          { access_log off; log_not_found off; deny all; }
+
+
     server_tokens off;
 
     ssl_certificate /etc/letsencrypt/live/${VNAME}/fullchain.pem;
