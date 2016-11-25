@@ -6,9 +6,23 @@
 # is configured for lets encrypt
 #
 
-CONFIRM=0
+if [ "$(id -u)" != "0" ]; then
+    echo "This script requires root privileges."
+    exit 1
+fi
+
+if ! command -v nginx 1>/dev/null; then
+    echo "This script requires nginx."
+    exit 1
+fi
+
 NGINX_DIR="/etc/nginx"
+HTTP2_MIN_VERSION=1.9.5
+# Internal variables
+CONFIRM=0
+HTTP2=""
 HSTS=""
+NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 
 config ()
 {
@@ -27,9 +41,11 @@ config ()
         proxy_redirect off;
     }"
 }
-if [ "$(id -u)" != "0" ]; then
-    echo "This script requires root privileges."
-    exit 1
+
+version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
+
+if ! version_gt "$HTTP2_MIN_VERSION" "$NGINX_VERSION"; then
+   HTTP2=" http2"
 fi
 
 #Check for a config file

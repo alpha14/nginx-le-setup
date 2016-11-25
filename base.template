@@ -2,7 +2,7 @@ server {
     # Generated with nginx-le-setup
     listen 80;
     listen [::]:80;
-    listen 443 ssl;
+    listen 443 ssl${HTTP2};
     server_name ${VNAME};
 
     ${CONFIG}
