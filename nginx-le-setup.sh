@@ -23,6 +23,8 @@ CONFIRM=0
 HTTP2=""
 HSTS=""
 NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
+domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
+	      | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
 
 config ()
 {
@@ -53,17 +55,16 @@ if [ -f ~/.nginx-le-setup ];then
     . ~/.nginx-le-setup
 fi
 
-domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
-		 | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
-
 # render a template configuration file
 # expand variables + preserve formatting
 render_template() {
     eval "echo \"$(cat "$1")\""
 }
 
-usage ()
-{
+error () {
+    echo "try '$0 --help' for more information"
+}
+usage () {
     echo "Usage: $0 <add|list> <params>"
     echo -e "\nCreate/Add arguments\n  -n, \t--name"
     echo -e "  -d, \t--directory \t\tWebsite directory"
@@ -73,8 +74,7 @@ usage ()
     echo -e "  -y\t\t\tAssume Yes to all queries and do not prompt"
 }
 
-create ()
-{
+create () {
     while [[ $# -gt 0 ]]
     do
 	key="$1"
@@ -110,15 +110,15 @@ create ()
     done
 
     if [[ -z "$VNAME" ]]; then
-	echo "--name required" && exit 1
+	echo "--name required" && error && exit 1
     elif [[ -z "$VPATH" ]] && [[ -z "$VPORT" ]]; then
-	echo "Directory (-d) or port number (-p) is required" && exit 1
+	echo "Directory (-d) or port number (-p) is required" && error && exit 1
     elif [[ -z "$EMAIL" ]]; then
-	echo "Lets encrypt email is required" && usage && exit 1
+	echo "Lets encrypt email is required" && error && exit 1
     elif [[ -z "${WEBROOT_PATH}" ]]; then
-	echo "Web root path is not set !" && usage && exit 1
+	echo "Web root path is not set !" && error && exit 1
     elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPORT" ]]; then
-	echo "--port and --directory parameters are mutually exclusive"  && exit 1
+	echo "--port and --directory parameters are mutually exclusive"  && error && exit 1
     else
 	for domain in $domains; do
 	    if [[ "${domain}" == "${VNAME}" ]]; then
@@ -129,23 +129,15 @@ create ()
     fi
 
     if [[ ! -d "${WEBROOT_PATH}" ]]; then
-	echo "Error : Webroot path '${WEBROOT_PATH}' does not exists"
-	exit 3
-    fi
-    if [[ ! -z "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
-	echo "Error : directory '${VPATH}' does not exists"
-	exit 3
-    fi
-    if [[ ! -z "$VPORT" ]] && [[ "$VPORT" != ?(-)+([0-9]) ]]; then
-	echo "Error : '${VPORT}' is not a valid port"
-	exit 3
-    fi
-
-    if nginx -t; then
+	echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
+    elif [[ ! -z "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
+	echo "Error : directory '${VPATH}' does not exists" && exit 3
+    elif [[ ! -z "$VPORT" ]] && [[ "$VPORT" != ?(-)+([0-9]) ]]; then
+	echo "Error : '${VPORT}' is not a valid port" && exit 3
+    elif nginx -t; then
 	echo "Creating a virtual host named '${VNAME}'"
     else
-	echo "Nginx configuration is incorrect, aborting."
-	exit 10;
+	echo "Nginx configuration is incorrect, aborting." && exit 10;
     fi
 
     if [[ $CONFIRM == 0 ]]; then
@@ -159,9 +151,11 @@ create ()
 
     echo "Creating certificate...."
     # Creating cert (--staging --debug for testing)
-    letsencrypt certonly --rsa-key-size 4096 --non-interactive --agree-tos --keep \
-      --text --email "${EMAIL}" -a webroot --webroot-path="${WEBROOT_PATH}" \
-      -d "${VNAME}"  || (echo "Error when creating cert, aborting..." && exit 4 )
+    if ! letsencrypt certonly --rsa-key-size 4096 --non-interactive --agree-tos --keep \
+	 --text --email "${EMAIL}" -a webroot --webroot-path="${WEBROOT_PATH}" \
+	 -d "${VNAME}"; then
+	echo "Error when creating cert, aborting..." && exit 4
+    fi
 
     config
     # Adding virtual host
@@ -196,6 +190,9 @@ case $key in
     create|add)
 	shift
 	create "$@"
+	;;
+    -h|--help|help)
+	usage
 	;;
     *)
 	# unknown option, redirect to "create" by default
