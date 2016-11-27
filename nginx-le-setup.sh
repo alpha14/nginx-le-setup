@@ -22,6 +22,7 @@ HTTP2_MIN_VERSION=1.9.5
 CONFIRM=0
 HTTP2=""
 HSTS=""
+LE_ARGS=""
 NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
 	      | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
@@ -67,11 +68,12 @@ error () {
 usage () {
     echo "Usage: $0 <add|list> <params>"
     echo -e "\nCreate/Add arguments\n  -n, \t--name"
-    echo -e "  -d, \t--directory \t\tWebsite directory"
+    echo -e "  -d, \t--directory \tWebsite directory"
     echo -e "  -p, \t--port \t\tPort used for a dynamic website"
     echo -e "  -e, \t--email \tlets encrypt email"
     echo -e "  -wb, \t--webroot-path"
     echo -e "  -y\t\t\tAssume Yes to all queries and do not prompt"
+    echo -e "  --staging\t\tDo not issue a trusted certificate"
 }
 
 create () {
@@ -98,6 +100,9 @@ create () {
 	    -wb|--webroot-path)
 		WEBROOT_PATH="$2"
 		shift
+		;;
+	    --staging)
+		LE_ARGS+="--staging "
 		;;
 	    -y)
 		CONFIRM=1
@@ -150,10 +155,10 @@ create () {
     fi
 
     echo "Creating certificate...."
-    # Creating cert (--staging --debug for testing)
-    if ! letsencrypt certonly --rsa-key-size 4096 --non-interactive --agree-tos --keep \
-	 --text --email "${EMAIL}" -a webroot --webroot-path="${WEBROOT_PATH}" \
-	 -d "${VNAME}"; then
+    # Creating cert
+    if ! letsencrypt certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
+	 --agree-tos --keep --text --email "${EMAIL}" -a webroot \
+	 --webroot-path="${WEBROOT_PATH}" -d "${VNAME}"; then
 	echo "Error when creating cert, aborting..." && exit 4
     fi
 
