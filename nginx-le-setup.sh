@@ -120,23 +120,26 @@ create () {
 	echo "Directory (-d) or port number (-p) is required" && error && exit 1
     elif [[ -z "$EMAIL" ]]; then
 	echo "Lets encrypt email is required" && error && exit 1
-    elif [[ -z "${WEBROOT_PATH}" ]]; then
-	echo "Web root path is not set !" && error && exit 1
+    elif [[ -z "${WEBROOT_PATH}" ]] && [[ ! -z "$VPORT" ]]; then
+	echo "Web root path is mandatory for a port based website" && error && exit 1
     elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPORT" ]]; then
 	echo "--port and --directory parameters are mutually exclusive"  && error && exit 1
     else
 	for domain in $domains; do
 	    if [[ "${domain}" == "${VNAME}" ]]; then
-		echo "Error : Domain already listed in nginx's virtual hosts"
+		echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
 		exit 2;
 	    fi
 	done
     fi
 
-    if [[ ! -d "${WEBROOT_PATH}" ]]; then
-	echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
-    elif [[ ! -z "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
+    if [[ -z "${WEBROOT_PATH}" ]]; then
+	WEBROOT_PATH=${VPATH}
+    fi
+    if [[ ! -z "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
 	echo "Error : directory '${VPATH}' does not exists" && exit 3
+    elif [[ ! -d "${WEBROOT_PATH}" ]]; then
+	echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
     elif [[ ! -z "$VPORT" ]] && [[ "$VPORT" != ?(-)+([0-9]) ]]; then
 	echo "Error : '${VPORT}' is not a valid port" && exit 3
     elif nginx -t; then
@@ -145,12 +148,18 @@ create () {
 	echo "Nginx configuration is incorrect, aborting." && exit 10;
     fi
 
+    if [ ! -z "${VPATH}" ]; then
+	echo "Website path : ${VPATH}"
+    else
+	echo "Website port : ${VPORT}"
+    fi
+    echo "Webroot path : ${WEBROOT_PATH}"
+
     if [[ $CONFIRM == 0 ]]; then
 	echo -n "Is this ok?? [y/N]: "
 	read continue
 	if [[ ${continue} != "y" ]]; then
-	    echo "Opertion aborted"
-	    exit 3;
+	    echo "Opertion aborted" && exit 3;
 	fi
     fi
 
