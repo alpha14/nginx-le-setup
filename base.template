@@ -3,7 +3,7 @@ server {
     listen 80;
     listen [::]:80;
     listen 443 ssl${HTTP2};
-    server_name ${VNAME};
+    server_name ${VDOMAINS};
 
     ${CONFIG}
 

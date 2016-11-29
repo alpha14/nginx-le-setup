@@ -1,9 +1,5 @@
 #!/bin/bash
-#
 # Setup a virtual host with a let's encrypt certificate
-#
-# This script assumes that your nginx default servername
-# is configured for lets encrypt
 #
 
 if [ "$(id -u)" != "0" ]; then
@@ -27,8 +23,7 @@ NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
 	      | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
 
-config ()
-{
+config () {
     STATIC="root ${VPATH};
         location / { try_files \$uri \$uri/ =404; }"
     DYNAMIC="location / {
@@ -62,14 +57,20 @@ render_template() {
     eval "echo \"$(cat "$1")\""
 }
 
+delete_conf() {
+    unlink "${NGINX_DIR}/sites-enabled/${VNAME}"
+    rm -v "${NGINX_DIR}/sites-available/${VNAME}"
+}
+
 error () {
     echo "try '$0 --help' for more information"
 }
 usage () {
     echo "Usage: $0 <add|list> <params>"
-    echo -e "\nCreate/Add arguments\n  -n, \t--name"
+    echo -e "\nCreate/Add arguments\n"
+    echo -e "  -n, \t--name \t\t domains or domains to configure (-n arg for each)"
     echo -e "  -d, \t--directory \tWebsite directory"
-    echo -e "  -p, \t--port \t\tPort used for a dynamic website"
+    echo -e "  -p, \t--port \t\tPort used for a proxified website"
     echo -e "  -e, \t--email \tlets encrypt email"
     echo -e "  -wb, \t--webroot-path"
     echo -e "  -y\t\t\tAssume Yes to all queries and do not prompt"
@@ -82,7 +83,8 @@ create () {
 	key="$1"
 	case $key in
 	    -n|--name)
-		VNAME="$2"
+		if [[ -z "$VNAME" ]]; then VNAME="$2"; fi
+		VDOMAINS+="$2 "
 		shift
 		;;
 	    -d|--dir|--directory)
@@ -121,7 +123,7 @@ create () {
     elif [[ -z "$EMAIL" ]]; then
 	echo "Lets encrypt email is required" && error && exit 1
     elif [[ -z "${WEBROOT_PATH}" ]] && [[ ! -z "$VPORT" ]]; then
-	echo "Web root path is mandatory for a port based website" && error && exit 1
+	echo "Web root path is mandatory for a proxy based website" && error && exit 1
     elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPORT" ]]; then
 	echo "--port and --directory parameters are mutually exclusive"  && error && exit 1
     else
@@ -133,6 +135,7 @@ create () {
 	done
     fi
 
+    # If a webroot path is not specified, use the directory path
     if [[ -z "${WEBROOT_PATH}" ]]; then
 	WEBROOT_PATH=${VPATH}
     fi
@@ -142,10 +145,10 @@ create () {
 	echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
     elif [[ ! -z "$VPORT" ]] && [[ "$VPORT" != ?(-)+([0-9]) ]]; then
 	echo "Error : '${VPORT}' is not a valid port" && exit 3
-    elif nginx -t; then
-	echo "Creating a virtual host named '${VNAME}'"
-    else
+    elif ! nginx -t; then
 	echo "Nginx configuration is incorrect, aborting." && exit 10;
+    else
+	echo "Creating certs and vhost for '${VDOMAINS}'"
     fi
 
     if [ ! -z "${VPATH}" ]; then
@@ -163,12 +166,29 @@ create () {
 	fi
     fi
 
-    echo "Creating certificate...."
+    # Place a simple vhost for the acme challenge
+    echo -e "
+    server {
+		listen 80;
+		server_name ${VDOMAINS};
+		location ~ /\.well-known/acme-challenge {
+		allow all;
+		default_type \"text/plain\";
+		root ${WEBROOT_PATH};
+		}
+	   }
+    " > "${NGINX_DIR}/sites-available/${VNAME}";
+    ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
+
+    systemctl reload nginx;
+    for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
+    echo "Creating certificate(s)...."
     # Creating cert
     if ! letsencrypt certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
 	 --agree-tos --keep --text --email "${EMAIL}" -a webroot \
-	 --webroot-path="${WEBROOT_PATH}" -d "${VNAME}"; then
-	echo "Error when creating cert, aborting..." && exit 4
+	 --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
+	echo "Error when creating cert, aborting..." &&
+	    delete_conf && exit 4
     fi
 
     config
@@ -177,21 +197,20 @@ create () {
 	echo "Adding vhost file (static)"
 	CONFIG=${STATIC}
     else
-	echo "Adding vhost file (dynamic)"
+	echo "Adding vhost file (proxy)"
 	CONFIG=${DYNAMIC}
     fi
 
+    # Install the vhost
     render_template base.template > "${NGINX_DIR}/sites-available/${VNAME}"
-    ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
     # Reload nginx
     if nginx -t; then
 	systemctl reload nginx
-	echo "${VNAME} is now active and working"
+	echo "${VDOMAINS} is now activated and working"
     else
 	echo "nginx config verification failed, rollbacking.."
-	unlink "${NGINX_DIR}/sites-enabled/${VNAME}"
-	rm -v "${NGINX_DIR}/sites-available/${VNAME}"
+	delete_conf
     fi
 }
 
