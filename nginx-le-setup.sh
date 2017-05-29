@@ -20,6 +20,8 @@ HTTP2=""
 HSTS=""
 LE_ARGS=""
 NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
+# Get absolute path of the script
+DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
 	      | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
 
@@ -202,7 +204,7 @@ create () {
     fi
 
     # Install the vhost
-    render_template base.template > "${NGINX_DIR}/sites-available/${VNAME}"
+    render_template ${DIR}/base.template > "${NGINX_DIR}/sites-available/${VNAME}"
 
     # Reload nginx
     if nginx -t; then
