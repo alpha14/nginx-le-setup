@@ -7,10 +7,13 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-if ! command -v nginx 1>/dev/null; then
-    echo "This script requires nginx."
-    exit 1
-fi
+check_dependency() {
+    if ! command -v $1 1>/dev/null; then
+	echo "This script requires $1." && exit 1
+    fi
+}
+check_dependency nginx
+check_dependency curl
 
 NGINX_DIR="/etc/nginx"
 HTTP2_MIN_VERSION=1.9.5
@@ -25,11 +28,11 @@ DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
 	      | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
 
-config () {
+config() {
     STATIC="root ${VPATH};
         location / { try_files \$uri \$uri/ =404; }"
-    DYNAMIC="location / {
-        proxy_pass http://localhost:${VPORT}/;
+    PROXY="location / {
+        proxy_pass ${VPROXY};
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \"upgrade\";
@@ -72,7 +75,7 @@ usage () {
     echo -e "\nCreate/Add arguments\n"
     echo -e "  -n, \t--name \t\t domains or domains to configure (-n arg for each)"
     echo -e "  -d, \t--directory \tWebsite directory"
-    echo -e "  -p, \t--port \t\tPort used for a proxified website"
+    echo -e "  -p, \t--proxy \t\t IP:Port or Port to forward"
     echo -e "  -e, \t--email \tlets encrypt email"
     echo -e "  -wb, \t--webroot-path"
     echo -e "  -y\t\t\tAssume Yes to all queries and do not prompt"
@@ -93,8 +96,8 @@ create () {
 		VPATH="$2"
 		shift
 		;;
-	    -p|--port)
-		VPORT="$2"
+	    -p|--proxy)
+		VPROXY="$2"
 		shift
 		;;
 	    -e|--email)
@@ -120,14 +123,14 @@ create () {
 
     if [[ -z "$VNAME" ]]; then
 	echo "--name required" && error && exit 1
-    elif [[ -z "$VPATH" ]] && [[ -z "$VPORT" ]]; then
-	echo "Directory (-d) or port number (-p) is required" && error && exit 1
+    elif [[ -z "$VPATH" ]] && [[ -z "$VPROXY" ]]; then
+	echo "Directory (-d) or proxy mode (-p) is required" && error && exit 1
     elif [[ -z "$EMAIL" ]]; then
 	echo "Lets encrypt email is required" && error && exit 1
-    elif [[ -z "${WEBROOT_PATH}" ]] && [[ ! -z "$VPORT" ]]; then
-	echo "Web root path is mandatory for a proxy based website" && error && exit 1
-    elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPORT" ]]; then
-	echo "--port and --directory parameters are mutually exclusive"  && error && exit 1
+    elif [[ -z "${WEBROOT_PATH}" ]] && [[ ! -z "$VPROXY" ]]; then
+	echo "Web root path is mandatory for proxy mode" && error && exit 1
+    elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPROXY" ]]; then
+	echo "--proxy and --directory parameters are mutually exclusive"  && error && exit 1
     else
 	for domain in $domains; do
 	    if [[ "${domain}" == "${VNAME}" ]]; then
@@ -141,12 +144,21 @@ create () {
     if [[ -z "${WEBROOT_PATH}" ]]; then
 	WEBROOT_PATH=${VPATH}
     fi
+    # If VPROXY contains only a port
+    if [[ ! -z "$VPROXY" ]] && [[ "$VPROXY" == ?(-)+([0-9]) ]]; then
+	VPROXY=http://localhost:${VPROXY}
+    fi
+    # IF VPROXY doesnt start by http
+    if [[ ! -z "$VPROXY" ]] && [[ "$VPROXY" != "http://"* ]];then
+	VPROXY=http://${VPROXY}
+    fi
+
     if [[ ! -z "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
 	echo "Error : directory '${VPATH}' does not exists" && exit 3
     elif [[ ! -d "${WEBROOT_PATH}" ]]; then
 	echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
-    elif [[ ! -z "$VPORT" ]] && [[ "$VPORT" != ?(-)+([0-9]) ]]; then
-	echo "Error : '${VPORT}' is not a valid port" && exit 3
+    elif [[ ! -z "$VPROXY" ]] && ! curl ${VPROXY} &>/dev/null; then
+	echo "Error : '${VPROXY}' is not valid or not up" && exit 3
     elif ! nginx -t; then
 	echo "Nginx configuration is incorrect, aborting." && exit 10;
     else
@@ -156,7 +168,7 @@ create () {
     if [ ! -z "${VPATH}" ]; then
 	echo "Website path : ${VPATH}"
     else
-	echo "Website port : ${VPORT}"
+	echo "Proxy to : ${VPROXY}"
     fi
     echo "Webroot path : ${WEBROOT_PATH}"
 
@@ -200,7 +212,7 @@ create () {
 	CONFIG=${STATIC}
     else
 	echo "Adding vhost file (proxy)"
-	CONFIG=${DYNAMIC}
+	CONFIG=${PROXY}
     fi
 
     # Install the vhost
