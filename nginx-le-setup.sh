@@ -188,7 +188,7 @@ create () {
     # Creating cert
     if ! letsencrypt certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
 	 --agree-tos --keep --text --email "${EMAIL}" -a webroot \
-	 --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
+	 --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
 	echo "Error when creating cert, aborting..." &&
 	    delete_conf && exit 4
     fi
