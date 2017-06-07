@@ -12,6 +12,8 @@ check_dependency() {
 	echo "This script requires $1." && exit 1
     fi
 }
+
+check_dependency certbot
 check_dependency nginx
 check_dependency curl
 
@@ -228,6 +230,13 @@ create () {
     fi
 }
 
+
+update() {
+    echo "Updating certificates"
+    (certbot renew --rsa-key-size 4096 &&  systemctl reload nginx &&
+	echo "Done") || echo "Error when updating certificates" && exit 5
+}
+
 key="$1"
 
 case $key in
@@ -237,6 +246,9 @@ case $key in
     create|add)
 	shift
 	create "$@"
+	;;
+    update)
+	update
 	;;
     -h|--help|help)
 	usage
