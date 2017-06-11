@@ -95,7 +95,7 @@ create () {
 		shift
 		;;
 	    -d|--dir|--directory)
-		VPATH="$2"
+		VPATH=$(readlink --canonicalize $2)
 		shift
 		;;
 	    -p|--proxy)
@@ -107,7 +107,7 @@ create () {
 		shift
 		;;
 	    -wb|--webroot-path)
-		WEBROOT_PATH="$2"
+		WEBROOT_PATH=$(readlink --canonicalize $2)
 		shift
 		;;
 	    --staging)
