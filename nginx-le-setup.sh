@@ -27,10 +27,14 @@ LE_ARGS=""
 NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 # Get absolute path of the script
 DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
-domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
-          | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
+
+domains() {
+    find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
+          | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_"
+}
 
 config() {
+
     STATIC="root ${VPATH};
         location / { try_files \$uri \$uri/ =404; }"
     PROXY="location / {
@@ -134,7 +138,7 @@ create () {
     elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPROXY" ]]; then
         echo "--proxy and --directory parameters are mutually exclusive" && error && exit 1
     else
-        for domain in $domains; do
+        for domain in $(domains); do
             if [[ "${domain}" == "${VNAME}" ]]; then
                 echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
                 exit 2;
@@ -241,7 +245,7 @@ key="$1"
 
 case $key in
     list)
-        echo "$domains"
+        for domain in $(domains); do echo $domain; done
         ;;
     create|add)
         shift
