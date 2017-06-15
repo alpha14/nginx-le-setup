@@ -9,7 +9,7 @@ fi
 
 check_dependency() {
     if ! command -v $1 1>/dev/null; then
-	echo "This script requires $1." && exit 1
+    echo "This script requires $1." && exit 1
     fi
 }
 
@@ -28,7 +28,7 @@ NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 # Get absolute path of the script
 DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 domains=$(find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
-	      | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
+          | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_")
 
 config() {
     STATIC="root ${VPATH};
@@ -50,7 +50,7 @@ config() {
 version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
 
 if ! version_gt "$HTTP2_MIN_VERSION" "$NGINX_VERSION"; then
-   HTTP2=" http2"
+    HTTP2=" http2"
 fi
 
 #Check for a config file
@@ -75,124 +75,124 @@ error () {
 usage () {
     echo "Usage: $0 <add|list> <params>"
     echo -e "\nCreate/Add arguments\n"
-    echo -e "  -n, \t--name \t\t domains or domains to configure (-n arg for each)"
-    echo -e "  -d, \t--directory \tWebsite directory"
-    echo -e "  -p, \t--proxy \t\t IP:Port or Port to forward"
-    echo -e "  -e, \t--email \tlets encrypt email"
-    echo -e "  -wb, \t--webroot-path"
-    echo -e "  -y\t\t\tAssume Yes to all queries and do not prompt"
-    echo -e "  --staging\t\tDo not issue a trusted certificate"
+    echo -e "  -n,     --name \t\t domains or domains to configure (-n arg for each)"
+    echo -e "  -d,     --directory \tWebsite directory"
+    echo -e "  -p,     --proxy \t\t IP:Port or Port to forward"
+    echo -e "  -e,     --email \tlets encrypt email"
+    echo -e "  -wb,     --webroot-path"
+    echo -e "  -y    \t\tAssume Yes to all queries and do not prompt"
+    echo -e "  --staging    \tDo not issue a trusted certificate"
 }
 
 create () {
     while [[ $# -gt 0 ]]
     do
-	key="$1"
-	case $key in
-	    -n|--name)
-		if [[ -z "$VNAME" ]]; then VNAME="$2"; fi
-		VDOMAINS+="$2 "
-		shift
-		;;
-	    -d|--dir|--directory)
-		VPATH=$(readlink --canonicalize $2)
-		shift
-		;;
-	    -p|--proxy)
-		VPROXY="$2"
-		shift
-		;;
-	    -e|--email)
-		EMAIL="$2"
-		shift
-		;;
-	    -wb|--webroot-path)
-		WEBROOT_PATH=$(readlink --canonicalize $2)
-		shift
-		;;
-	    --staging)
-		LE_ARGS+="--staging "
-		;;
-	    -y)
-		CONFIRM=1
-		;;
-	    *)
-		# unknown option
-		;;
-    esac
-    shift # past argument or value
+        key="$1"
+        case $key in
+            -n|--name)
+                if [[ -z "$VNAME" ]]; then VNAME="$2"; fi
+                VDOMAINS+="$2 "
+                shift
+                ;;
+            -d|--dir|--directory)
+                VPATH=$(readlink --canonicalize $2)
+                shift
+                ;;
+            -p|--proxy)
+                VPROXY="$2"
+                shift
+                ;;
+            -e|--email)
+                EMAIL="$2"
+                shift
+                ;;
+            -wb|--webroot-path)
+                WEBROOT_PATH=$(readlink --canonicalize $2)
+                shift
+                ;;
+            --staging)
+                LE_ARGS+="--staging "
+                ;;
+            -y)
+                CONFIRM=1
+                ;;
+            *)
+                # unknown option
+                ;;
+        esac
+        shift # past argument or value
     done
 
     if [[ -z "$VNAME" ]]; then
-	echo "--name required" && error && exit 1
+        echo "--name required" && error && exit 1
     elif [[ -z "$VPATH" ]] && [[ -z "$VPROXY" ]]; then
-	echo "Directory (-d) or proxy mode (-p) is required" && error && exit 1
+        echo "Directory (-d) or proxy mode (-p) is required" && error && exit 1
     elif [[ -z "$EMAIL" ]]; then
-	echo "Lets encrypt email is required" && error && exit 1
+        echo "Lets encrypt email is required" && error && exit 1
     elif [[ -z "${WEBROOT_PATH}" ]] && [[ ! -z "$VPROXY" ]]; then
-	echo "Web root path is mandatory for proxy mode" && error && exit 1
+        echo "Web root path is mandatory for proxy mode" && error && exit 1
     elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPROXY" ]]; then
-	echo "--proxy and --directory parameters are mutually exclusive"  && error && exit 1
+        echo "--proxy and --directory parameters are mutually exclusive" && error && exit 1
     else
-	for domain in $domains; do
-	    if [[ "${domain}" == "${VNAME}" ]]; then
-		echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
-		exit 2;
-	    fi
-	done
+        for domain in $domains; do
+            if [[ "${domain}" == "${VNAME}" ]]; then
+                echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
+                exit 2;
+            fi
+        done
     fi
 
     # If a webroot path is not specified, use the directory path
     if [[ -z "${WEBROOT_PATH}" ]]; then
-	WEBROOT_PATH=${VPATH}
+        WEBROOT_PATH=${VPATH}
     fi
     # If VPROXY contains only a port
     if [[ ! -z "$VPROXY" ]] && [[ "$VPROXY" == ?(-)+([0-9]) ]]; then
-	VPROXY=http://localhost:${VPROXY}
+        VPROXY=http://localhost:${VPROXY}
     fi
     # IF VPROXY doesnt start by http
     if [[ ! -z "$VPROXY" ]] && [[ "$VPROXY" != "http://"* ]];then
-	VPROXY=http://${VPROXY}
+        VPROXY=http://${VPROXY}
     fi
 
     if [[ ! -z "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
-	echo "Error : directory '${VPATH}' does not exists" && exit 3
+        echo "Error : directory '${VPATH}' does not exists" && exit 3
     elif [[ ! -d "${WEBROOT_PATH}" ]]; then
-	echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
+        echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
     elif [[ ! -z "$VPROXY" ]] && ! curl ${VPROXY} &>/dev/null; then
-	echo "Error : '${VPROXY}' is not valid or not up" && exit 3
+        echo "Error : '${VPROXY}' is not valid or not up" && exit 3
     elif ! nginx -t; then
-	echo "Nginx configuration is incorrect, aborting." && exit 10;
+        echo "Nginx configuration is incorrect, aborting." && exit 10;
     else
-	echo "Creating certs and vhost for '${VDOMAINS}'"
+        echo "Creating certs and vhost for '${VDOMAINS}'"
     fi
 
     if [ ! -z "${VPATH}" ]; then
-	echo "Website path : ${VPATH}"
+        echo "Website path : ${VPATH}"
     else
-	echo "Proxy to : ${VPROXY}"
+        echo "Proxy to : ${VPROXY}"
     fi
     echo "Webroot path : ${WEBROOT_PATH}"
 
     if [[ $CONFIRM == 0 ]]; then
-	echo -n "Is this ok?? [y/N]: "
-	read continue
-	if [[ ${continue} != "y" ]]; then
-	    echo "Opertion aborted" && exit 3;
-	fi
+        echo -n "Is this ok?? [y/N]: "
+        read continue
+        if [[ ${continue} != "y" ]]; then
+            echo "Opertion aborted" && exit 3;
+        fi
     fi
 
     # Place a simple vhost for the acme challenge
     echo -e "
     server {
-		listen 80;
-		server_name ${VDOMAINS};
-		location ~ /\.well-known/acme-challenge {
-		allow all;
-		default_type \"text/plain\";
-		root ${WEBROOT_PATH};
-		}
-	   }
+    	listen 80;
+    	server_name ${VDOMAINS};
+    	location ~ /\.well-known/acme-challenge {
+    	allow all;
+    	default_type \"text/plain\";
+    	root ${WEBROOT_PATH};
+    	}
+       }
     " > "${NGINX_DIR}/sites-available/${VNAME}";
     ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
@@ -201,20 +201,20 @@ create () {
     echo "Creating certificate(s)...."
     # Creating cert
     if ! letsencrypt certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
-	 --agree-tos --keep --text --email "${EMAIL}" -a webroot \
-	 --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
-	echo "Error when creating cert, aborting..." &&
-	    delete_conf && exit 4
+         --agree-tos --keep --text --email "${EMAIL}" -a webroot \
+         --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
+        echo "Error when creating cert, aborting..." &&
+            delete_conf && exit 4
     fi
 
     config
     # Adding virtual host
     if [ ! -z "${VPATH}" ]; then
-	echo "Adding vhost file (static)"
-	CONFIG=${STATIC}
+        echo "Adding vhost file (static)"
+        CONFIG=${STATIC}
     else
-	echo "Adding vhost file (proxy)"
-	CONFIG=${PROXY}
+        echo "Adding vhost file (proxy)"
+        CONFIG=${PROXY}
     fi
 
     # Install the vhost
@@ -222,11 +222,11 @@ create () {
 
     # Reload nginx
     if nginx -t; then
-	systemctl reload nginx
-	echo "${VDOMAINS} is now activated and working"
+        systemctl reload nginx
+        echo "${VDOMAINS} is now activated and working"
     else
-	echo "nginx config verification failed, rollbacking.."
-	delete_conf
+        echo "nginx config verification failed, rollbacking.."
+        delete_conf
     fi
 }
 
@@ -234,27 +234,27 @@ create () {
 update() {
     echo "Updating certificates"
     (certbot renew --rsa-key-size 4096 &&  systemctl reload nginx &&
-	echo "Done") || echo "Error when updating certificates" && exit 5
+         echo "Done") || echo "Error when updating certificates" && exit 5
 }
 
 key="$1"
 
 case $key in
     list)
-	echo "$domains"
-	;;
+        echo "$domains"
+        ;;
     create|add)
-	shift
-	create "$@"
-	;;
+        shift
+        create "$@"
+        ;;
     update)
-	update
-	;;
+        update
+        ;;
     -h|--help|help)
-	usage
-	;;
+        usage
+        ;;
     *)
-	# unknown option, redirect to "create" by default
-	create "$@"
-	;;
+        # unknown option, redirect to "create" by default
+        create "$@"
+        ;;
 esac
