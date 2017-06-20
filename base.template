@@ -40,7 +40,16 @@ server {
 
     # HSTS (ngx_http_headers_module is required) 6 months
     add_header Strict-Transport-Security \"max-age=15768000; ${HSTS}\";
+
+    add_header Content-Security-Policy \"frame-ancestors 'none'\";
+    proxy_hide_header X-Frame-Options;
     add_header X-Frame-Options \"SAMEORIGIN\";
+
+    proxy_hide_header X-Xss-protection;
     add_header X-Xss-protection \"1; mode=block\";
+
+    proxy_hide_header X-Content-Type-Options;
     add_header X-Content-Type-Options nosniff;
+
+    add_header Referrer-Policy same-origin;
 }
