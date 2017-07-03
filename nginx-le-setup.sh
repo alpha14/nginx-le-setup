@@ -21,6 +21,8 @@ NGINX_DIR="/etc/nginx"
 HTTP2_MIN_VERSION=1.9.5
 # Internal variables
 CONFIRM=0
+FORCE=0
+BACKUP=0
 HTTP2=""
 HSTS=""
 LE_ARGS=""
@@ -29,8 +31,9 @@ NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 
 domains() {
-    find ${NGINX_DIR} -type f -print0 | xargs -0 egrep '^(\s|\t)*server_name' \
-          | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_"
+    find "${NGINX_DIR}/sites-enabled" -type f -print0 \
+        | xargs -0 egrep '^(\s|\t)*server_name' \
+        | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_"
 }
 
 config() {
@@ -68,24 +71,40 @@ render_template() {
     eval "echo \"$(cat "$1")\""
 }
 
-delete_conf() {
-    unlink "${NGINX_DIR}/sites-enabled/${VNAME}"
-    rm -v "${NGINX_DIR}/sites-available/${VNAME}"
-}
-
 error () {
     echo "try '$0 --help' for more information"
 }
+
 usage () {
     echo "Usage: $0 <add|list> <params>"
     echo -e "\nCreate/Add arguments\n"
-    echo -e "  -n,     --name \t\t domains or domains to configure (-n arg for each)"
-    echo -e "  -d,     --directory \tWebsite directory"
-    echo -e "  -p,     --proxy \t\t IP:Port or Port to forward"
-    echo -e "  -e,     --email \tlets encrypt email"
-    echo -e "  -wb,     --webroot-path"
-    echo -e "  -y    \t\tAssume Yes to all queries and do not prompt"
-    echo -e "  --staging    \tDo not issue a trusted certificate"
+    echo -e "  -n,     --name \t\tDomains or domains to configure (-n arg for each)"
+    echo -e "  -d,     --directory \t\tWebsite directory"
+    echo -e "  -p,     --proxy \t\tIP:Port or Port to forward"
+    echo -e "  -e,     --email \t\tLets encrypt email"
+    echo -e "  -wb,    --webroot-path \tPath to place the http challenge"
+    echo -e "  -f,     --force \t\tForce the creation of the virtualhost"
+    echo -e "  -y\t\t\t\tAssume Yes to all queries and do not prompt"
+    echo -e "  --staging \t\t\tDo not issue a trusted certificate"
+}
+
+backup_conf() {
+    if cp "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-available/${VNAME}.backup"; then
+        BACKUP=1
+    fi
+}
+
+restore_conf() {
+    if [[ $BACKUP == 1 ]]; then
+        mv "${NGINX_DIR}/sites-available/${VNAME}.backup" "${NGINX_DIR}/sites-available/${VNAME}"
+    fi
+}
+
+delete_conf() {
+    if [[ $BACKUP == 0 ]]; then
+        unlink "${NGINX_DIR}/sites-enabled/${VNAME}"
+        rm -v "${NGINX_DIR}/sites-available/${VNAME}"
+    fi
 }
 
 create () {
@@ -120,6 +139,10 @@ create () {
             -y)
                 CONFIRM=1
                 ;;
+            -f|--force)
+                FORCE=1
+                CONFIRM=1
+                ;;
             *)
                 # unknown option
                 ;;
@@ -140,8 +163,12 @@ create () {
     else
         for domain in $(domains); do
             if [[ "${domain}" == "${VNAME}" ]]; then
-                echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
-                exit 2;
+
+                if [[ $FORCE == 0 ]]; then
+                    echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
+                    exit 2;
+                fi
+                echo "Warning : Domain '${VNAME}' already listed in nginx virtual hosts"
             fi
         done
     fi
@@ -166,7 +193,7 @@ create () {
     elif [[ ! -z "$VPROXY" ]] && ! curl ${VPROXY} &>/dev/null; then
         echo "Error : '${VPROXY}' is not valid or not up" && exit 3
     elif ! nginx -t; then
-        echo "Nginx configuration is incorrect, aborting." && exit 10;
+        echo "Error: Current nginx configuration is incorrect, aborting." && exit 10;
     else
         echo "Creating certs and vhost for '${VDOMAINS}'"
     fi
@@ -186,20 +213,24 @@ create () {
         fi
     fi
 
-    # Place a simple vhost for the acme challenge
-    echo -e "
-    server {
-    	listen 80;
-    	server_name ${VDOMAINS};
-    	location ~ /\.well-known/acme-challenge {
-    	allow all;
-    	default_type \"text/plain\";
-    	root ${WEBROOT_PATH};
-    	}
-       }
-    " > "${NGINX_DIR}/sites-available/${VNAME}";
-    ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
-
+    if [[ -e "${NGINX_DIR}/sites-available/${VNAME}" ]]; then
+        echo "Creating a backup file in ${NGINX_DIR}/sites-available/"
+        backup_conf
+    else
+        # Place a simple vhost for the acme challenge
+        echo -e "
+        server {
+    	  listen 80;
+    	  server_name ${VDOMAINS};
+    	  location ~ /\.well-known/acme-challenge {
+    	  allow all;
+    	  default_type \"text/plain\";
+    	  root ${WEBROOT_PATH};
+          }
+        }
+        " > "${NGINX_DIR}/sites-available/${VNAME}";
+        ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
+    fi
     systemctl reload nginx;
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
     echo "Creating certificate(s)...."
@@ -208,7 +239,7 @@ create () {
          --agree-tos --keep --text --email "${EMAIL}" -a webroot \
          --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
         echo "Error when creating cert, aborting..." &&
-            delete_conf && exit 4
+            delete_conf && restore_conf && exit 4
     fi
 
     config
@@ -230,7 +261,7 @@ create () {
         echo "${VDOMAINS} is now activated and working"
     else
         echo "nginx config verification failed, rollbacking.."
-        delete_conf
+        delete_conf && restore_conf
     fi
 }
 
