@@ -216,9 +216,9 @@ create () {
     if [[ -e "${NGINX_DIR}/sites-available/${VNAME}" ]]; then
         echo "Creating a backup file in ${NGINX_DIR}/sites-available/"
         backup_conf
-    else
-        # Place a simple vhost for the acme challenge
-        echo -e "
+    fi
+    # Place a simple vhost for the acme challenge
+    echo -e "
         server {
     	  listen 80;
     	  server_name ${VDOMAINS};
@@ -228,9 +228,13 @@ create () {
     	  root ${WEBROOT_PATH};
           }
         }
-        " > "${NGINX_DIR}/sites-available/${VNAME}";
-        ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
+    " > "${NGINX_DIR}/sites-available/${VNAME}";
+
+    if [ -e "${NGINX_DIR}/sites-enabled/${VNAME}" ]; then
+	rm "${NGINX_DIR}/sites-enabled/${VNAME}"
     fi
+    ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
+
     systemctl reload nginx;
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
     echo "Creating certificate(s)...."
