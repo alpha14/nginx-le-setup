@@ -156,8 +156,6 @@ create () {
         echo "Directory (-d) or proxy mode (-p) is required" && error && exit 1
     elif [[ -z "$EMAIL" ]]; then
         echo "Lets encrypt email is required" && error && exit 1
-    elif [[ -z "${WEBROOT_PATH}" ]] && [[ ! -z "$VPROXY" ]]; then
-        echo "Web root path is mandatory for proxy mode" && error && exit 1
     elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPROXY" ]]; then
         echo "--proxy and --directory parameters are mutually exclusive" && error && exit 1
     else
@@ -173,9 +171,14 @@ create () {
         done
     fi
 
-    # If a webroot path is not specified, use the directory path
+    # If a webroot path is not specified, use the directory path for classic cases
+    # or default nginx directory in proxy mode
     if [[ -z "${WEBROOT_PATH}" ]]; then
-        WEBROOT_PATH=${VPATH}
+        if [[ -z "$VPATH" ]]; then
+            WEBROOT_PATH=${VPATH}
+        elif [[ -z "$VPROXY" ]]; then
+            WEBROOT_PATH="/usr/share/nginx/html"
+        fi
     fi
     # If VPROXY contains only a port
     if [[ ! -z "$VPROXY" ]] && [[ "$VPROXY" == ?(-)+([0-9]) ]]; then
