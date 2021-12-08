@@ -242,7 +242,7 @@ create () {
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
     echo "Creating certificate(s)...."
     # Creating cert
-    if ! letsencrypt certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
+    if ! certbot certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
          --agree-tos --keep --text --email "${EMAIL}" -a webroot \
          --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
         echo "Error when creating cert, aborting..." &&
