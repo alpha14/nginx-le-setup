@@ -8,7 +8,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 check_dependency() {
-    if ! command -v $1 1>/dev/null; then
+    if ! command -v "$1" 1>/dev/null; then
     echo "This script requires $1." && exit 1
     fi
 }
@@ -28,7 +28,7 @@ HSTS=""
 LE_ARGS=""
 NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 # Get absolute path of the script
-DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
+DIR="$(cd "${BASH_SOURCE[0]%/*}" && pwd)"
 
 domains() {
     find "${NGINX_DIR}/sites-enabled" -print0 \
@@ -118,7 +118,7 @@ create () {
                 shift
                 ;;
             -d|--dir|--directory)
-                VPATH=$(readlink --canonicalize $2)
+                VPATH=$(readlink --canonicalize "$2")
                 shift
                 ;;
             -p|--proxy)
@@ -130,7 +130,7 @@ create () {
                 shift
                 ;;
             -wb|--webroot-path)
-                WEBROOT_PATH=$(readlink --canonicalize $2)
+                WEBROOT_PATH=$(readlink --canonicalize "$2")
                 shift
                 ;;
             --staging)
@@ -156,7 +156,7 @@ create () {
         echo "Directory (-d) or proxy mode (-p) is required" && error && exit 1
     elif [[ -z "$EMAIL" ]]; then
         echo "Lets encrypt email is required" && error && exit 1
-    elif [[ ! -z "$VPATH" ]] && [[ ! -z "$VPROXY" ]]; then
+    elif [[ -n "$VPATH" ]] && [[ -n "$VPROXY" ]]; then
         echo "--proxy and --directory parameters are mutually exclusive" && error && exit 1
     else
         for domain in $(domains); do
@@ -181,19 +181,19 @@ create () {
         fi
     fi
     # If VPROXY contains only a port
-    if [[ ! -z "$VPROXY" ]] && [[ "$VPROXY" == ?(-)+([0-9]) ]]; then
-        VPROXY=http://localhost:${VPROXY}
+    if [[ -n "$VPROXY" ]] && [[ "$VPROXY" == ?(-)+([0-9]) ]]; then
+        VPROXY="http://localhost:${VPROXY}"
     fi
     # IF VPROXY doesnt start by http
-    if [[ ! -z "$VPROXY" ]] && [[ "$VPROXY" != "http://"* ]];then
-        VPROXY=http://${VPROXY}
+    if [[ -n "$VPROXY" ]] && [[ "$VPROXY" != "http://"* ]];then
+        VPROXY="http://${VPROXY}"
     fi
 
-    if [[ ! -z "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
+    if [[ -n "$VPATH" ]] && [[ ! -d "${VPATH}" ]]; then
         echo "Error : directory '${VPATH}' does not exists" && exit 3
     elif [[ ! -d "${WEBROOT_PATH}" ]]; then
         echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
-    elif [[ ! -z "$VPROXY" ]] && ! curl ${VPROXY} &>/dev/null; then
+    elif [[ -n "$VPROXY" ]] && ! curl "${VPROXY}" &>/dev/null; then
         echo "Error : '${VPROXY}' is not valid or not up" && exit 3
     elif ! nginx -t; then
         echo "Error: Current nginx configuration is incorrect, aborting." && exit 10;
@@ -201,7 +201,7 @@ create () {
         echo "Creating certs and vhost for '${VDOMAINS}'"
     fi
 
-    if [ ! -z "${VPATH}" ]; then
+    if [ -n "${VPATH}" ]; then
         echo "Website path : ${VPATH}"
     else
         echo "Proxy to : ${VPROXY}"
@@ -210,7 +210,7 @@ create () {
 
     if [[ $CONFIRM == 0 ]]; then
         echo -n "Is this ok?? [y/N]: "
-        read continue
+        read -r continue
         if [[ ${continue} != "y" ]]; then
             echo "Opertion aborted" && exit 3;
         fi
@@ -242,6 +242,7 @@ create () {
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
     echo "Creating certificate(s)...."
     # Creating cert
+    # shellcheck disable=SC2086
     if ! certbot certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
          --agree-tos --keep --text --email "${EMAIL}" -a webroot \
          --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
@@ -251,7 +252,7 @@ create () {
 
     config
     # Adding virtual host
-    if [ ! -z "${VPATH}" ]; then
+    if [ -n "${VPATH}" ]; then
         echo "Adding vhost file (static)"
         CONFIG=${STATIC}
     else
@@ -260,7 +261,7 @@ create () {
     fi
 
     # Install the vhost
-    render_template ${DIR}/base.template > "${NGINX_DIR}/sites-available/${VNAME}"
+    render_template "${DIR}/base.template" > "${NGINX_DIR}/sites-available/${VNAME}"
 
     # Reload nginx
     if nginx -t; then
@@ -283,7 +284,7 @@ key="$1"
 
 case $key in
     list)
-        for domain in $(domains); do echo $domain; done
+        for domain in $(domains); do echo "$domain"; done
         ;;
     create|add)
         shift
