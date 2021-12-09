@@ -296,7 +296,7 @@ case $key in
         usage
         ;;
     *)
-        # unknown option, redirect to "create" by default
-        create "$@"
+        # unknown option, redirect to help by default
+        usage
         ;;
 esac
