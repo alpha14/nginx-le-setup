@@ -33,7 +33,7 @@ DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 domains() {
     find "${NGINX_DIR}/sites-enabled" "${NGINX_DIR}/conf.d" -type f -print0 \
         | xargs -0 egrep '^(\s|\t)*server_name' \
-        | sed -r 's/(.*server_name\s*|;)//g' | grep -v "localhost\|_"
+        | sed -r 's/(.*server_name\s*|;)//g' | uniq | grep -v "localhost\|_"
 }
 
 config() {
@@ -60,8 +60,8 @@ if ! version_gt "$HTTP2_MIN_VERSION" "$NGINX_VERSION"; then
     HTTP2=" http2"
 fi
 
-#Check for a config file
-if [ -f ~/.nginx-le-setup ];then
+# Check for a config file
+if [ -r ~/.nginx-le-setup ];then
     . ~/.nginx-le-setup
 fi
 
@@ -238,7 +238,7 @@ create () {
     fi
     ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
-    systemctl reload nginx;
+    nginx -s reload;
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
     echo "Creating certificate(s)...."
     # Creating cert
@@ -264,7 +264,7 @@ create () {
 
     # Reload nginx
     if nginx -t; then
-        systemctl reload nginx
+        nginx -s reload
         echo "${VDOMAINS} is now activated and working"
     else
         echo "nginx config verification failed, rollbacking.."
@@ -275,7 +275,7 @@ create () {
 
 update() {
     echo "Updating certificates"
-    (certbot renew --rsa-key-size 4096 &&  systemctl reload nginx &&
+    (certbot renew --rsa-key-size 4096 && nginx -s reload &&
          echo "Done") || echo "Error when updating certificates" && exit 5
 }
 
