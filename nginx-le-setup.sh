@@ -31,7 +31,7 @@ NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 
 domains() {
-    find "${NGINX_DIR}/sites-enabled" "${NGINX_DIR}/conf.d" -type f -print0 \
+    find "${NGINX_DIR}/sites-enabled" "${NGINX_DIR}/conf.d" -type f,l -print0 \
         | xargs -0 egrep '^(\s|\t)*server_name' \
         | sed -r 's/(.*server_name\s*|;)//g' | uniq | grep -v "localhost\|_"
 }
