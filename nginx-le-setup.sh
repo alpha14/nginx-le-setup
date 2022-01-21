@@ -266,7 +266,8 @@ create () {
     fi
     ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
-    nginx -s reload;
+    nginx -s reload || echo "Unable to interact with nginx, aborting.." \
+            && delete_conf && restore_conf && exit 10;
     _create_certbot_hook
 
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
@@ -298,8 +299,7 @@ create () {
     render_template ${DIR}/base.template > "${NGINX_DIR}/sites-available/${VNAME}"
 
     # Reload nginx
-    if nginx -t; then
-        nginx -s reload
+    if (nginx -t && nginx -s reload); then
         echo "${VDOMAINS} is now activated and working"
     else
         echo "nginx config verification failed, rollbacking.."
