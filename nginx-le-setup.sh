@@ -203,9 +203,9 @@ create () {
     # If a webroot path is not specified, use the directory path for classic cases
     # or default nginx directory in proxy mode
     if [[ -z "${WEBROOT_PATH}" ]]; then
-        if [[ -z "$VPATH" ]]; then
+        if [[ -n "$VPATH" ]]; then
             WEBROOT_PATH=${VPATH}
-        elif [[ -z "$VPROXY" ]]; then
+        elif [[ -n "$VPROXY" ]]; then
             WEBROOT_PATH="/usr/share/nginx/html"
         fi
     fi
