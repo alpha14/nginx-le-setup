@@ -192,6 +192,7 @@ create () {
 
                 if [[ $FORCE == 0 ]]; then
                     echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
+                    echo "Add '--force' option to override"
                     exit 2;
                 fi
                 echo "Warning : Domain '${VNAME}' already listed in nginx virtual hosts"
