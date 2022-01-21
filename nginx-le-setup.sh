@@ -223,7 +223,7 @@ create () {
     elif [[ ! -d "${WEBROOT_PATH}" ]]; then
         echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
     elif [[ ! -z "$VPROXY" ]] && ! curl ${VPROXY} &>/dev/null; then
-        echo "Error : '${VPROXY}' is not valid or not up" && exit 3
+        echo "Error : Upstream '${VPROXY}' is unreachable" && exit 3
     elif ! nginx -t; then
         echo "Error: Current nginx configuration is incorrect, aborting." && exit 10;
     else
@@ -267,8 +267,8 @@ create () {
     fi
     ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
-    nginx -s reload || echo "Unable to interact with nginx, aborting.." \
-            && delete_conf && restore_conf && exit 10;
+    nginx -s reload || (echo "Unable to interact with nginx, aborting.." \
+            && delete_conf && restore_conf && exit 10);
     _create_certbot_hook
 
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
