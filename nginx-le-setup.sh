@@ -26,9 +26,33 @@ BACKUP=0
 HTTP2=""
 HSTS=""
 LE_ARGS=""
+_CREATE_POST_HOOK=1
+_POST_HOOK_DIR="/etc/letsencrypt/renewal-hooks/post"
+_POST_HOOK_PATH="${_POST_HOOK_DIR}/nginx.sh"
 NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 # Get absolute path of the script
 DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
+
+_create_certbot_hook() {
+
+    if [[ $_CREATE_POST_HOOK == 0 ]]; then echo "Skipping post hook installation" && return; fi
+
+    if [[ -x "$_POST_HOOK_PATH" ]]; then
+        return
+    else
+        echo "Hook is not installed or not readable, reinstalling it"
+    fi
+
+    echo "Certbot post hook not found, installing it"
+    echo -e "#!/bin/bash\n# Nginx-le-setup\necho 'Reloading nginx'\nnginx -t && nginx -s reload" > $_POST_HOOK_PATH
+
+    if [[ "$?" -ne "0" ]]; then
+        echo "Error when deploying post hook in ${_POST_HOOK_DIR}"
+        return
+    fi
+    chmod 755 "${_POST_HOOK_PATH}" && echo "Post hook deployed in ${_POST_HOOK_PATH}"
+
+}
 
 domains() {
     find "${NGINX_DIR}/sites-enabled" "${NGINX_DIR}/conf.d" -type f,l -print0 \
@@ -76,13 +100,14 @@ error () {
 }
 
 usage () {
-    echo "Usage: $0 <add|list> <params>"
+    echo "Usage: $0 <add|list|update|hook> <params>"
     echo -e "\nCreate/Add arguments\n"
     echo -e "  -n,     --name \t\tDomains or domains to configure (-n arg for each)"
     echo -e "  -d,     --directory \t\tWebsite directory"
     echo -e "  -p,     --proxy \t\tIP:Port or Port to forward"
     echo -e "  -e,     --email \t\tLets encrypt email"
     echo -e "  -wb,    --webroot-path \tPath to place the http challenge"
+    echo -e "  --no-hook,             \tDo not install certbot post hook for nginx"
     echo -e "  -f,     --force \t\tForce the creation of the virtualhost"
     echo -e "  -y\t\t\t\tAssume Yes to all queries and do not prompt"
     echo -e "  --staging \t\t\tDo not issue a trusted certificate"
@@ -135,6 +160,9 @@ create () {
                 ;;
             --staging)
                 LE_ARGS+="--staging "
+                ;;
+            --no-hook)
+                _CREATE_POST_HOOK=0
                 ;;
             -y)
                 CONFIRM=1
@@ -239,12 +267,19 @@ create () {
     ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
     nginx -s reload;
+    _create_certbot_hook
+
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
+
+    _HOOK_ARG=""
+    if [[ $_CREATE_POST_HOOK == 1 ]]; then _HOOK_ARG="--post-hook ${_POST_HOOK_PATH}"; fi
+
     echo "Creating certificate(s)...."
     # Creating cert
-    if ! certbot certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive \
-         --agree-tos --keep --text --email "${EMAIL}" -a webroot \
-         --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
+
+    if ! certbot certonly ${LE_ARGS} --rsa-key-size 4096 --non-interactive --agree-tos --keep \
+         --text --email "${EMAIL}" $_HOOK_ARG \
+         -a webroot --expand --webroot-path="${WEBROOT_PATH}" ${QUERY_DMNS}; then
         echo "Error when creating cert, aborting..." &&
             delete_conf && restore_conf && exit 4
     fi
@@ -274,6 +309,7 @@ create () {
 
 
 update() {
+    _create_certbot_hook
     echo "Updating certificates"
     (certbot renew --rsa-key-size 4096 && nginx -s reload &&
          echo "Done") || echo "Error when updating certificates" && exit 5
@@ -291,6 +327,9 @@ case $key in
         ;;
     update)
         update
+        ;;
+    hook)
+        _create_certbot_hook
         ;;
     -h|--help|help)
         usage
