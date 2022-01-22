@@ -192,6 +192,7 @@ create () {
 
                 if [[ $FORCE == 0 ]]; then
                     echo "Error : Domain '${VNAME}' already listed in nginx virtual hosts"
+                    echo "Add '--force' option to override"
                     exit 2;
                 fi
                 echo "Warning : Domain '${VNAME}' already listed in nginx virtual hosts"
@@ -202,9 +203,9 @@ create () {
     # If a webroot path is not specified, use the directory path for classic cases
     # or default nginx directory in proxy mode
     if [[ -z "${WEBROOT_PATH}" ]]; then
-        if [[ -z "$VPATH" ]]; then
+        if [[ -n "$VPATH" ]]; then
             WEBROOT_PATH=${VPATH}
-        elif [[ -z "$VPROXY" ]]; then
+        elif [[ -n "$VPROXY" ]]; then
             WEBROOT_PATH="/usr/share/nginx/html"
         fi
     fi
@@ -222,7 +223,7 @@ create () {
     elif [[ ! -d "${WEBROOT_PATH}" ]]; then
         echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
     elif [[ ! -z "$VPROXY" ]] && ! curl ${VPROXY} &>/dev/null; then
-        echo "Error : '${VPROXY}' is not valid or not up" && exit 3
+        echo "Error : Upstream '${VPROXY}' is unreachable" && exit 3
     elif ! nginx -t; then
         echo "Error: Current nginx configuration is incorrect, aborting." && exit 10;
     else
@@ -266,7 +267,8 @@ create () {
     fi
     ln -s "${NGINX_DIR}/sites-available/${VNAME}" "${NGINX_DIR}/sites-enabled/${VNAME}"
 
-    nginx -s reload;
+    nginx -s reload || (echo "Unable to interact with nginx, aborting.." \
+            && delete_conf && restore_conf && exit 10);
     _create_certbot_hook
 
     for domain in $VDOMAINS; do QUERY_DMNS+="-d $domain "; done
@@ -298,8 +300,7 @@ create () {
     render_template ${DIR}/base.template > "${NGINX_DIR}/sites-available/${VNAME}"
 
     # Reload nginx
-    if nginx -t; then
-        nginx -s reload
+    if (nginx -t && nginx -s reload); then
         echo "${VDOMAINS} is now activated and working"
     else
         echo "nginx config verification failed, rollbacking.."
