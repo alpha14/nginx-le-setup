@@ -44,7 +44,7 @@ _create_certbot_hook() {
     fi
 
     echo "Certbot post hook not found, installing it"
-    echo -e "#!/bin/bash\n# Nginx-le-setup\necho 'Reloading nginx'\nnginx -t && nginx -s reload" > $_POST_HOOK_PATH
+    echo -e "#!/bin/bash\n# Nginx-le-setup\necho 'Reloading nginx'\n(nginx -t && nginx -s reload) 2>&1" > $_POST_HOOK_PATH
 
     if [[ "$?" -ne "0" ]]; then
         echo "Error when deploying post hook in ${_POST_HOOK_DIR}"
