@@ -35,16 +35,17 @@ DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 
 _create_certbot_hook() {
 
-    if [[ $_CREATE_POST_HOOK == 0 ]]; then echo "Skipping post hook installation" && return; fi
+    _BYPASS_CHECK=${1:-0}
 
-    if [[ -x "$_POST_HOOK_PATH" ]]; then
-        return
-    else
-        echo "Hook is not installed or not readable, reinstalling it"
+    if [[ "$_BYPASS_CHECK" -eq 0 ]]; then
+        if [[ "$_CREATE_POST_HOOK" -eq 0 ]]; then
+            echo "Skipping post hook installation" && return
+        elif [[ -x "$_POST_HOOK_PATH" ]]; then
+            return
+        fi
+        echo "Certbot hook is not installed or not readable, installing it"
     fi
-
-    echo "Certbot post hook not found, installing it"
-    echo -e "#!/bin/bash\n# Nginx-le-setup\necho 'Reloading nginx'\nnginx -t && nginx -s reload" > $_POST_HOOK_PATH
+    echo -e "#!/bin/bash\n# Nginx-le-setup\necho 'Reloading nginx'\n(nginx -t && nginx -s reload) 2>&1" > $_POST_HOOK_PATH
 
     if [[ "$?" -ne "0" ]]; then
         echo "Error when deploying post hook in ${_POST_HOOK_DIR}"
@@ -330,7 +331,7 @@ case $key in
         update
         ;;
     hook)
-        _create_certbot_hook
+        _create_certbot_hook 1
         ;;
     -h|--help|help)
         usage
