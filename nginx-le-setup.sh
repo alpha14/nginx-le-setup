@@ -205,8 +205,8 @@ create() {
   if [[ -z "${WEBROOT_PATH}" ]]; then
     if [[ -n "$VPATH" ]]; then
       WEBROOT_PATH=${VPATH}
-    elif [[ -n "$VPROXY" ]]; then
-      WEBROOT_PATH="/usr/share/nginx/html"
+    else
+      WEBROOT_PATH="/var/www/html"
     fi
   fi
   # If VPROXY contains only a port
