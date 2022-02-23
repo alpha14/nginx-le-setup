@@ -315,6 +315,7 @@ update() {
     echo "Done") || echo "Error when updating certificates" && exit 5
 }
 
+nginx-le-setup() {
 key="$1"
 
 case $key in
@@ -339,3 +340,11 @@ hook)
   usage
   ;;
 esac
+}
+
+if [[ ${BASH_SOURCE[0]} != $0 ]]; then
+  export -f nginx-le-setup
+else
+  nginx-le-setup "${@}"
+  exit $?
+fi
