@@ -216,11 +216,13 @@ _create() {
     echo "Error : directory '${VPATH}' does not exists" && exit 3
   elif [[ ! -d "${WEBROOT_PATH}" ]]; then
     echo "Error : Webroot path '${WEBROOT_PATH}' does not exists" && exit 3
-  elif [[ -n "${VPROXY}" ]] && ! curl "${VPROXY}" &>/dev/null; then
-    echo "Error : Upstream '${VPROXY}' is unreachable" && exit 3
   elif ! nginx -t; then
     echo "Error: Current nginx configuration is incorrect, aborting." && exit 10
   else
+
+    if [[ -n "${VPROXY}" ]] && ! curl "${VPROXY}" &>/dev/null; then
+      echo "Warning : Upstream '${VPROXY}' is unreachable"
+    fi
     echo "Creating certs and vhost for '${VDOMAINS}'"
   fi
 
