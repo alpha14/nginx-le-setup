@@ -205,7 +205,7 @@ _create() {
   fi
   # If VPROXY contains only a port
   if [[ -n "${VPROXY}" ]] && [[ "${VPROXY}" == ?(-)+([0-9]) ]]; then
-    VPROXY=http://localhost:${VPROXY}
+    VPROXY=http://127.0.0.1:${VPROXY}
   fi
   # IF VPROXY doesnt start by http
   if [[ -n "${VPROXY}" ]] && [[ "${VPROXY}" != "http://"* ]]; then
