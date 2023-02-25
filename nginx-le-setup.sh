@@ -286,7 +286,10 @@ _create() {
   if [ -n "${VPATH}" ]; then
     # shellcheck disable=SC2034
     CONFIG="root ${VPATH};
-        location / { try_files \$uri \$uri/ =404; }"
+        location / {
+          autoindex on;
+          try_files \$uri \$uri/ =404;
+        }"
   else
     # shellcheck disable=SC2034
     CONFIG="location / {
