@@ -3,12 +3,11 @@
 #
 
 NGINX_DIR="/etc/nginx"
-HTTP2_MIN_VERSION=1.9.5
 # Internal variables
 CONFIRM=0
 FORCE=0
 _BACKUP=0
-HTTP2=""
+HTTP3=""
 # shellcheck disable=SC2034
 HSTS=""
 _CERBOT_EXTRA_ARGS=""
@@ -49,9 +48,9 @@ _initialize_variables() {
 
   _NGINX_VERSION=$(nginx -v 2>&1 | cut -d '/' -f 2)
 
-  if _version_gt "${_NGINX_VERSION}" "${HTTP2_MIN_VERSION}"; then
+  if (nginx -V 2>&1 | grep http_v3); then
     # shellcheck disable=SC2034
-    HTTP2=" http2"
+    HTTP3=1
   fi
 
   # Check for a config file
