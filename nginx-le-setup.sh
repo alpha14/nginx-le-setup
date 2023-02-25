@@ -289,6 +289,10 @@ _create() {
         location / {
           autoindex on;
           try_files \$uri \$uri/ =404;
+
+          sendfile           on;
+          sendfile_max_chunk 8m;
+          tcp_nopush on;
         }"
   else
     # shellcheck disable=SC2034
