@@ -77,10 +77,7 @@ _create_certbot_hook() {
     echo "Certbot hook is not installed or not readable, installing it"
   fi
 
-  if (echo -e "${_HOOK}" >"${_POST_HOOK_PATH}"); then
-    echo "Error when deploying post hook in ${_POST_HOOK_DIR}"
-    return
-  fi
+  echo -e "${_HOOK}" >"${_POST_HOOK_PATH}"
   chmod 755 "${_POST_HOOK_PATH}" && echo "Post hook deployed in ${_POST_HOOK_PATH}"
 
 }
