@@ -7,6 +7,7 @@ NGINX_DIR="/etc/nginx"
 CONFIRM=0
 FORCE=0
 _BACKUP=0
+HTTP2=""
 HTTP3=""
 # shellcheck disable=SC2034
 HSTS=""
@@ -52,7 +53,9 @@ _initialize_variables() {
     # shellcheck disable=SC2034
     HTTP3=1
   fi
-
+  if _version_gt "${_NGINX_VERSION}" "1.25.1"; then
+    HTTP2=1
+  fi
   # Check for a config file
   if [ -r ~/.nginx-le-setup ]; then
     # shellcheck source=/dev/null
