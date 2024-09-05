@@ -61,6 +61,11 @@ _initialize_variables() {
     # shellcheck source=/dev/null
     . ~/.nginx-le-setup
   fi
+  # Generate certbot directories if they don't exist
+  # https://github.com/certbot/certbot/issues/9530
+  if [ -d /etc/letsencrypt/renewal-hooks/ ]; then
+    certbot certificates &>/dev/null || echo "Error during creation of certbot directories"
+  fi
 
 }
 
