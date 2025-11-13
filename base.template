@@ -7,10 +7,17 @@ server {
     # Generated with nginx-le-setup
     listen 80;
     listen [::]:80;
-    listen 443 ssl http2;
-    ${HTTP3:+listen 443 http3 reuseport;}
-    listen [::]:443 ssl http2;
-    ${HTTP3:+listen [::]:443 http3 reuseport;}
+
+    listen 443 ssl;
+    ${HTTP3:+listen 443 quic;}
+
+    listen [::]:443 ssl;
+    ${HTTP3:+listen [::]:443 quic;}
+
+    ${HTTP2:+http2 on;}
+    ${HTTP3:+http3 on;}
+    ${HTTP3:+add_header Alt-Svc 'h3=\":443\"; ma=86400';}
+
     server_name ${VDOMAINS};
 
     ${CONFIG}
@@ -38,6 +45,7 @@ server {
     ssl_session_timeout 1d;
     ssl_session_cache shared:MozSSL:10m;  # about 40000 sessions
     ssl_session_tickets off;
+    ssl_early_data on; # http3
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
